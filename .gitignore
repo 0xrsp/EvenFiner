@@ -1,0 +1,7 @@
+*.obj
+*.exe
+*.sln
+*.pdb
+*.ilk
+*.pch
+.vs/
