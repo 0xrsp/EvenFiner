@@ -36,14 +36,13 @@ static bool win32_CreateProcess(s8* exe, s8* args, u64* out_time) {
 
 #define FMT_TIME_UNITS(time,ms) ms ? time*1000.0 : time, ms ? "ms" : "s"
 
-static void CompileResults(const std::vector<u64>& timestamps) {
-  size_t N = timestamps.size();
+static void CompileResults(u64* timestamps, size_t N) {
   u64 total_ticks = 0;
   u64 min_ticks = 0xFF'FF'FF'FF'FF'FF'FF'FF, max_ticks = 0;
-  for (u64 timestamp : timestamps) {
-    total_ticks += timestamp;
-    min_ticks = min(min_ticks, timestamp);
-    max_ticks = max(max_ticks, timestamp);
+  for (size_t i = 0; i < N; ++i) {
+    total_ticks += timestamps[i];
+    min_ticks = min(min_ticks, timestamps[i]);
+    max_ticks = max(max_ticks, timestamps[i]);
   }
   u64 avg_ticks = total_ticks / N;
   f64 avg_secs = avg_ticks / (f64)clock_freq;
@@ -51,19 +50,19 @@ static void CompileResults(const std::vector<u64>& timestamps) {
   f64 max_secs = max_ticks / (f64)clock_freq;
 
   s64 sigma = 0;
-  for (u64 timestamp : timestamps) {
-    s64 delta = timestamp - avg_ticks;
+  for (size_t i = 0; i < N; ++i) {
+    s64 delta = timestamps[i] - avg_ticks;
     sigma += delta * delta;
   }
   f64 sd_ticks = sqrt(sigma / (f64)(N - 1));
   f64 sd_secs = sd_ticks / (f64)clock_freq;
 
   bool32 use_ms = avg_secs < 1.0;
-  printf("Time \tmean:%f%s stddev:%f%s\n",
+  printf("Time\tmean:%f%s\tstddev:%f%s\n",
     FMT_TIME_UNITS(avg_secs, use_ms),
     FMT_TIME_UNITS(sd_secs, use_ms));
 
-  printf("Range \tmin:%f%s max:%f%s\n",
+  printf("Range\t min:%f%s\tmax:%f%s\n",
     FMT_TIME_UNITS(min_secs, use_ms),
     FMT_TIME_UNITS(max_secs, use_ms));
 }
@@ -75,9 +74,8 @@ s32 main(s32 argc, s8* argv[]) {
   ParseArgs(&args, argc, argv);
   //NOTE: Debug arg
   //args.directory = ".";
-  //printf("warmup=%d runs=%d exe=%s args=%s\n", args.warmup_runs, args.runs, args.file, args.passed);
 
-  std::vector<u64> timestamps{};
+  u64* timestamps = (u64*)malloc(args.runs * sizeof(u64));
 
   for (s32 i = 0; i < args.warmup_runs; ++i) {
     if (!win32_CreateProcess(args.file, args.passed, nullptr)) {
@@ -90,11 +88,10 @@ s32 main(s32 argc, s8* argv[]) {
     if (!win32_CreateProcess(args.file, args.passed, &run_time)) {
       goto exit_err;
     }
-    //printf("run took: %llu ticks\n", run_time);
-    timestamps.push_back(run_time);
+    timestamps[i] = run_time;
   }
 
-  CompileResults(timestamps);
+  CompileResults(timestamps, args.runs);
   return 0;
 exit_err:
   return 1;

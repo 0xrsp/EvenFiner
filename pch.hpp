@@ -8,8 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-
-#include <vector>
+#include <math.h>
 
 typedef char s8;
 typedef short s16;
